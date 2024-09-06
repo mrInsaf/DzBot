@@ -1,3 +1,9 @@
+from aiogram import Dispatcher, types, F
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+
+from misc import create_kb
+
 TEST_TOKEN = "7373519023:AAGHAMx01azAa4XRtG_QP3JApqLLEcxFsSg"
 MAIN_TOKEN = '7129795991:AAHb793O24B1UvI0c-TlGQ-m_e1zDFM0x08'
 
@@ -6,13 +12,14 @@ dp = Dispatcher()
 
 @dp.message(Command('start'))
 async def start_command(message: types.Message, state: FSMContext):
-    kb = start_logic()
+    kb = create_kb()
     await message.answer("Выберите действие", reply_markup=kb.as_markup())
+
 
 
 @dp.callback_query(F.data == "back", CalculatePrice.start)
 async def start_command(callback: CallbackQuery, state: FSMContext):
-    kb = start_logic()
+    kb = create_kb()
     await callback.message.answer("Выберите действие", reply_markup=kb.as_markup())
 
 
