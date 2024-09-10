@@ -18,7 +18,7 @@ from states import *
 from db import *
 
 TEST_TOKEN = "6570387436:AAF97uK9eF23S4GByAv3bOq0HEGQT_sd67o"
-MAIN_TOKEN = '7129795991:AAHb793O24B1UvI0c-TlGQ-m_e1zDFM0x08'
+MAIN_TOKEN = '7057080247:AAF7lvvtHip5Eynij5FV4g3w4vDP6LMqH1I'
 
 dp = Dispatcher()
 
