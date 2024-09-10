@@ -1,7 +1,12 @@
 import datetime
+from typing import List
 
 import mysql
 from mysql.connector import Error, pooling
+
+from models.Assignment import Assignment
+from models.Deadline import Deadline
+from models.Group import Group
 
 # Параметры подключения к базе данных MySQL
 config = {
@@ -117,12 +122,28 @@ def select_assignments_by_group_id(group_id: int):
     return assignments_raw
 
 
+def select_assignments_by_subject_id(subject_id: int):
+    return select(f'SELECT * FROM Assignments WHERE subject_id = {subject_id}')
+
+
 def select_subjects_by_group_id(group_id: int):
     return select(
         f'SELECT s.id, s.name from Subjects s join Group_Subject gs '
         f'on s.id = gs.subject_id join `Groups` g '
         f'on g.id = gs.group_id where g.id = {group_id};'
     )
+
+
+def select_group_by_subject_id(subject_id: int) -> List[Group]:
+    result = []
+    group_list = select(
+        f'SELECT group_id, g.name from Group_Subject gs '
+        f'join `Groups` g on gs.group_id = g.id '
+        f'where subject_id = {subject_id};'
+    )
+    for group in group_list:
+        result.append(Group(group[0], group[1]))
+    return result
 
 
 def select_subject_by_subject_id(subject_id: int):
@@ -140,6 +161,39 @@ def insert_assignment(subject_id: int, group_id: int, description: str, deadline
     VALUES (%s, %s, %s, %s)
     """
     params = (subject_id, group_id, description, deadline.strftime('%Y-%m-%d %H:%M:%S'))
+    execute_query(query, params)
+
+
+def select_assignments_by_group_id_and_subject_id(group_id: int, subject_id: int):
+    raw_assignments = select(
+        f'SELECT a.id, s.name, a.group_id, a.description, a.deadline, a.created_at '
+        f'from Assignments a '
+        f'join Subjects s on a.subject_id = s.id '
+        f'where a.group_id = {group_id} and a.subject_id = {subject_id}')
+    assignment_list = []
+    for assignment in raw_assignments:
+        assignment_list.append(
+            Assignment(
+                id=assignment[0],
+                subject=assignment[1],
+                group_id=assignment[2],
+                description=assignment[3],
+                deadline=assignment[4],
+                created_at=assignment[5],
+            )
+        )
+    return assignment_list
+
+
+def update_description_by_assignment_id(assignment_id: int, new_description: str):
+    query = f"UPDATE Assignments SET description = %s WHERE id = %s;"
+    params = [new_description, assignment_id]
+    execute_query(query, params)
+
+
+def update_deadline_by_assignment_id(assignment_id: int, new_deadline: Deadline):
+    query = f"UPDATE Assignments SET deadline = %s WHERE id = %s;"
+    params = [new_deadline.dttm, assignment_id]
     execute_query(query, params)
 
 
