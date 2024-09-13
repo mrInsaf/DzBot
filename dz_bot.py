@@ -80,7 +80,7 @@ async def start_command(callback: CallbackQuery, state: FSMContext):
             )
         kb.adjust(1)
         await callback.message.answer(f"Привет, {name}, Выберите действие", reply_markup=kb.as_markup())
-        await state.set_state(StartState.start_state)
+        await state.set_state(StartState.start)
     else:
         print("Чел не зареган")
         groups = select_all_groups()
