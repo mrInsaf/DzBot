@@ -80,8 +80,22 @@ async def choose_subject(callback: CallbackQuery, state: FSMContext):
 
 
 async def send_add_assignment_notification_to_group(bot: Bot, group_id: int, assignment_text: str):
-    students = select_students_chat_ids_by_group_id(group_id)
     text = f"Добавлено новое ДЗ. Описание:\n{assignment_text}\nДля перехода в начало нажмите /start"
+    await send_notification_to_group(bot, group_id, text)
+
+
+async def send_edit_assignment_new_description_notification_to_group(bot: Bot, group_id: int, assignment_text: str):
+    text = f"Изменилось описание в одном из ДЗ. Описание:\n{assignment_text}\nДля перехода в начало нажмите /start"
+    await send_notification_to_group(bot, group_id, text)
+
+
+async def send_edit_assignment_new_deadline_notification_to_group(bot: Bot, group_id: int, assignment_text: str):
+    text = f"Изменился дедлайн в одном из ДЗ. Описание:\n{assignment_text}\nДля перехода в начало нажмите /start"
+    await send_notification_to_group(bot, group_id, text)
+
+
+async def send_notification_to_group(bot: Bot, group_id: int, text: str):
+    students = select_students_chat_ids_by_group_id(group_id)
     for student in students:
         await bot.send_message(chat_id=int(student[0]), text=text)
 

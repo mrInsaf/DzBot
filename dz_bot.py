@@ -425,6 +425,13 @@ async def edit_assignment_save(callback: CallbackQuery, state: FSMContext):
         new_description = data['new_description']
         try:
             update_description_by_assignment_id(assignment_id, new_description)
+            assignment_obj = select_assignment_by_id(assignment_id)
+            assignment_text = create_assignment_text_from_assignment_obj(assignment_obj)
+            await send_edit_assignment_new_description_notification_to_group(
+                bot=bot,
+                group_id=assignment_obj.group_id,
+                assignment_text=assignment_text
+            )
             await callback.message.answer(text="ДЗ обновлено\n\nНажмите /start для перехода в начало")
         except Exception as e:
             print(f"Ошибка при обновлении дз: {e}")
@@ -433,6 +440,13 @@ async def edit_assignment_save(callback: CallbackQuery, state: FSMContext):
         new_deadline = data['new_deadline']
         try:
             update_deadline_by_assignment_id(assignment_id, new_deadline)
+            assignment_obj = select_assignment_by_id(assignment_id)
+            assignment_text = create_assignment_text_from_assignment_obj(assignment_obj)
+            await send_edit_assignment_new_deadline_notification_to_group(
+                bot=bot,
+                group_id=assignment_obj.group_id,
+                assignment_text=assignment_text
+            )
             await callback.message.answer(text="ДЗ обновлено\n\nНажмите /start для перехода в начало")
         except Exception as e:
             print(f"Ошибка при обновлении дз: {e}")
