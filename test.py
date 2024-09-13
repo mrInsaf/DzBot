@@ -1,5 +1,5 @@
 from db import *
 from misc import *
 
-print(select_assignment_by_id(13))
+print(is_leader('pushcip'))
 

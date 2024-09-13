@@ -1,13 +1,14 @@
 import datetime
 import inspect
 
+from aiogram import Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from data.leaders import leaders
 from days_of_week import days_of_week
-from db import select_subject_by_subject_id, select_group_id_by_chat_id, select_subjects_by_group_id, select_leaders
+from db import *
 from models.Assignment import Assignment
 from models.Deadline import Deadline
 
@@ -77,6 +78,12 @@ async def choose_subject(callback: CallbackQuery, state: FSMContext):
     kb.adjust(1)
     await callback.message.answer(text="Выберите предмет", reply_markup=kb.as_markup())
 
+
+async def send_add_assignment_notification_to_group(bot: Bot, group_id: int, assignment_text: str):
+    students = select_students_chat_ids_by_group_id(group_id)
+    text = f"Добавлено новое ДЗ. Описание:\n{assignment_text}\nДля перехода в начало нажмите /start"
+    for student in students:
+        await bot.send_message(chat_id=int(student[0]), text=text)
 
 def dttm_to_string(dttm: datetime) -> str:
     return dttm.strftime("%d.%m.%Y")

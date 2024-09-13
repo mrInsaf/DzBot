@@ -29,11 +29,13 @@ async def start_command(message: types.Message, state: FSMContext):
     if check_student_in_db(message.from_user.id):
         kb.add(
             InlineKeyboardButton(text="Посмотреть ДЗ", callback_data="Check assignments"),
-            InlineKeyboardButton(text="Добавить ДЗ", callback_data="Add assignment"),
-            InlineKeyboardButton(text="Изменить ДЗ", callback_data="Edit assignment"),
         )
         if is_leader(message.from_user.username):
-            kb.add(InlineKeyboardButton(text="Удалить ДЗ", callback_data="Delete assignment"))
+            # kb.add(InlineKeyboardButton(text="Удалить ДЗ", callback_data="Delete assignment"))
+            kb.add(
+                InlineKeyboardButton(text="Добавить ДЗ", callback_data="Add assignment"),
+                InlineKeyboardButton(text="Изменить ДЗ", callback_data="Edit assignment"),
+            )
         print(message.from_user.username)
         kb.adjust(1)
         await message.answer("Выберите действие", reply_markup=kb.as_markup())
@@ -65,7 +67,11 @@ async def start_command(callback: CallbackQuery, state: FSMContext):
             InlineKeyboardButton(text="Изменить ДЗ", callback_data="Edit assignment"),
         )
         if is_leader(callback.from_user.username):
-            kb.add(InlineKeyboardButton(text="Удалить ДЗ", callback_data="Delete assignment"))
+            # kb.add(InlineKeyboardButton(text="Удалить ДЗ", callback_data="Delete assignment"))
+            kb.add(
+                InlineKeyboardButton(text="Добавить ДЗ", callback_data="Add assignment"),
+                InlineKeyboardButton(text="Изменить ДЗ", callback_data="Edit assignment"),
+            )
         kb.adjust(1)
         await callback.message.answer(f"Привет, {name}, Выберите действие", reply_markup=kb.as_markup())
         await state.set_state(StartState.start_state)
@@ -226,6 +232,8 @@ async def add_assignment_finish(callback: CallbackQuery, state: FSMContext):
     assignment_id = insert_assignment(subject_id, group_id, description, deadline)
     assignment_obj = select_assignment_by_id(assignment_id)
 
+    assignment_text = create_assignment_text_from_assignment_obj(assignment_obj)
+
     if other_leaders:
         for leader in other_leaders:
             leader_chat_id_str = str(leader[0])
@@ -240,7 +248,8 @@ async def add_assignment_finish(callback: CallbackQuery, state: FSMContext):
         await state.set_state(AddAssignment.real_finish)
     kb.adjust(1)
 
-    print(f"assignment_obj: {assignment_obj}")
+    await send_add_assignment_notification_to_group(bot, group_id, assignment_text)
+
     await callback.message.answer(text="ДЗ создано\n\nДля перехода в начало нажите /start", reply_markup=kb.as_markup())
 
 

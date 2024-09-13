@@ -158,6 +158,10 @@ def select_subject_by_subject_id(subject_id: int):
     return select(f'select name from Subjects where id = {subject_id}')[0][0]
 
 
+def select_students_chat_ids_by_group_id(group_id: int):
+    return select(f"select chat_id from Students where group_id = {group_id}")
+
+
 def insert_student(name: str, chat_id: int, tag: str, group_id: int):
     data_list = [name, chat_id, tag, group_id]
     return insert("Students", data_list)
