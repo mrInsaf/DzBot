@@ -21,6 +21,7 @@ class AddAssignment(StatesGroup):
     choose_deadline = State()
     input_description = State()
     finish = State()
+    share_with_other_leader = State()
     real_finish = State()
 
 

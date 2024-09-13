@@ -1,11 +1,13 @@
 import datetime
+import inspect
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardButton, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from data.leaders import leaders
 from days_of_week import days_of_week
-from db import select_subject_by_subject_id, select_group_id_by_chat_id, select_subjects_by_group_id
+from db import select_subject_by_subject_id, select_group_id_by_chat_id, select_subjects_by_group_id, select_leaders
 from models.Assignment import Assignment
 from models.Deadline import Deadline
 
@@ -20,6 +22,12 @@ def create_kb():
 def create_assignment_text(subject: str, deadline_str: str, description: str, week_day, days_remaining):
     return f"\n<b>{subject}</b>\n\n<u>Дедлайн</u> {deadline_str} {week_day} ({days_remaining} дней осталось)\nОписание: {description}\n\n -----------------\n"
 
+
+def create_assignment_text_from_assignment_obj(assignment: Assignment):
+    return (f"\n<b>{assignment.subject}</b>\n\n"
+            f"<u>Дедлайн</u> {assignment.deadline.string} {assignment.deadline.day_of_week} "
+            f"({assignment.deadline.days_remaining} дней осталось)\n"
+            f"Описание: {assignment.description}\n\n -----------------\n")
 
 def days_until(target_date: datetime.datetime) -> int:
     """Функция считает количество дней до указанной даты"""
@@ -39,7 +47,8 @@ async def add_assignment_accept_dz_logic(description: str, state: FSMContext):
 
     subject_id = data['subject_id']
     subject = select_subject_by_subject_id(subject_id)
-    deadline = Deadline(data['deadline'])
+    deadline = data['deadline']
+    print(f"data is: {data}")
 
     assignment_text = create_assignment_text(
         subject,
@@ -94,3 +103,32 @@ def find_assignment_from_data(callback:CallbackQuery, data: dict) -> Assignment:
     assignment_id = int(callback.data)
     selected_assignment: Assignment = find_by_id(assignments, assignment_id)
     return selected_assignment
+
+
+def create_assignments_list(raw_assignments: list):
+    assignment_list = []
+    for assignment in raw_assignments:
+        assignment_obj = Assignment(
+            id=assignment[0],
+            subject=assignment[1],
+            group_id=assignment[2],
+            description=assignment[3],
+            deadline=assignment[4],
+            created_at=assignment[5],
+        )
+        if assignment_obj.deadline.dttm >= datetime.datetime.now():
+            assignment_list.append(assignment_obj)
+    return assignment_list
+
+
+def caller_func():
+    # Получаем текущий фрейм
+    current_frame = inspect.currentframe()
+    # Переходим на один уровень вверх по стеку (к вызывающей функции)
+    outer_frames = inspect.getouterframes(current_frame)
+    return outer_frames[3].function
+
+
+def is_leader(username):
+    # leaders = select_leaders()
+    return username in leaders

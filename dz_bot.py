@@ -25,20 +25,20 @@ dp = Dispatcher()
 
 @dp.message(Command('start'))
 async def start_command(message: types.Message, state: FSMContext):
-    print("start")
     kb = create_kb()
     if check_student_in_db(message.from_user.id):
-        print("Чел зареган")
         kb.add(
             InlineKeyboardButton(text="Посмотреть ДЗ", callback_data="Check assignments"),
             InlineKeyboardButton(text="Добавить ДЗ", callback_data="Add assignment"),
             InlineKeyboardButton(text="Изменить ДЗ", callback_data="Edit assignment"),
         )
+        if is_leader(message.from_user.username):
+            kb.add(InlineKeyboardButton(text="Удалить ДЗ", callback_data="Delete assignment"))
+        print(message.from_user.username)
         kb.adjust(1)
         await message.answer("Выберите действие", reply_markup=kb.as_markup())
         await state.set_state(StartState.start)
     else:
-        print("Чел не зареган")
         groups = select_all_groups()
         username = message.from_user.username
         for group in groups:
@@ -64,6 +64,8 @@ async def start_command(callback: CallbackQuery, state: FSMContext):
             InlineKeyboardButton(text="Добавить ДЗ", callback_data="Add assignment"),
             InlineKeyboardButton(text="Изменить ДЗ", callback_data="Edit assignment"),
         )
+        if is_leader(callback.from_user.username):
+            kb.add(InlineKeyboardButton(text="Удалить ДЗ", callback_data="Delete assignment"))
         kb.adjust(1)
         await callback.message.answer(f"Привет, {name}, Выберите действие", reply_markup=kb.as_markup())
         await state.set_state(StartState.start_state)
@@ -116,20 +118,20 @@ async def check_assignments_start(callback: CallbackQuery, state: FSMContext):
     kb = create_kb()
     result_assignment_text = ""
     chat_id = callback.from_user.id
-    group_id = select_group_id_by_chat_id(chat_id)
-    await state.update_data(group_id=group_id)
-    assignments_raw = select_assignments_by_group_id(group_id)
-    for assignment in assignments_raw:
-        subject = assignment[0]
-        deadline = Deadline(assignment[1])
-        description = assignment[2]
-
+    data = await state.get_data()
+    group_id = data['group_id']
+    if callback.data == "overall":
+        assignments_list = select_assignments_by_group_id(group_id)
+    else:
+        subject_id = int(callback.data)
+        assignments_list = select_assignments_by_group_id_and_subject_id(group_id, subject_id)
+    for assignment in assignments_list:
         assignment_text = create_assignment_text(
-            subject,
-            deadline.string,
-            description,
-            deadline.day_of_week,
-            deadline.days_remaining
+            assignment.subject,
+            assignment.deadline.string,
+            assignment.description,
+            assignment.deadline.day_of_week,
+            assignment.deadline.days_remaining
         )
 
         result_assignment_text += assignment_text
@@ -168,9 +170,10 @@ async def add_assignment_input_description(message: Message, state: FSMContext):
     try:
         date_str = message.text
         parsed_date = string_to_dttm(date_str)
+        deadline = Deadline(parsed_date)
 
         await message.answer(text="Введите описание ДЗ", reply_markup=kb.as_markup())
-        await state.update_data(deadline=parsed_date)
+        await state.update_data(deadline=deadline)
         await state.set_state(AddAssignment.input_description)
     except ValueError:
         await message.answer(text="Некорректный ввод даты, попробуйте ввести в формате 'дд.мм'")
@@ -207,6 +210,8 @@ async def add_assignment_accept_dz(callback: CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data == "accept", AddAssignment.finish)
 async def add_assignment_finish(callback: CallbackQuery, state: FSMContext):
+    kb = create_kb()
+
     data = await state.get_data()
     print(f'data is: {data}')
     subject_id = data['subject_id']
@@ -214,9 +219,68 @@ async def add_assignment_finish(callback: CallbackQuery, state: FSMContext):
     description = data['description']
     deadline = data['deadline']
 
-    insert_assignment(subject_id, group_id, description, deadline)
-    await callback.message.answer(text="ДЗ создано\n\nДля перехода в начало нажите /start")
-    await state.set_state(AddAssignment.real_finish)
+    current_leader_tag = callback.from_user.username
+
+    other_leaders = select_leader_with_same_subject(subject_id, current_leader_tag)
+
+    assignment_id = insert_assignment(subject_id, group_id, description, deadline)
+    assignment_obj = select_assignment_by_id(assignment_id)
+
+    if other_leaders:
+        for leader in other_leaders:
+            leader_chat_id_str = str(leader[0])
+            leader_name_str = str(leader[1])
+            print(f"leader is: {leader}")
+            kb.add(
+                InlineKeyboardButton(text=f"Поделиться со старостой {leader_name_str}", callback_data=leader_chat_id_str)
+            )
+            await state.update_data(assignment_obj=assignment_obj)
+            await state.set_state(AddAssignment.share_with_other_leader)
+    else:
+        await state.set_state(AddAssignment.real_finish)
+    kb.adjust(1)
+
+    print(f"assignment_obj: {assignment_obj}")
+    await callback.message.answer(text="ДЗ создано\n\nДля перехода в начало нажите /start", reply_markup=kb.as_markup())
+
+
+@dp.callback_query(AddAssignment.share_with_other_leader)
+async def add_assignment_share_with_other_leader(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    assignment_obj: Assignment = data['assignment_obj']
+    leader_chat_id = callback.data
+    assignment_text = create_assignment_text_from_assignment_obj(
+        assignment_obj
+    )
+    await callback.message.answer(text="Отправлено,\n\nДля перехода в начало нажите /start")
+    kb = InlineKeyboardBuilder()
+    kb.add(
+        InlineKeyboardButton(text="Принять", callback_data=f"share_assignment_accept|{assignment_obj.id}"),
+        InlineKeyboardButton(text="Отклонить", callback_data="share assignment|cancel"),
+    )
+    await bot.send_message(
+        chat_id=leader_chat_id,
+        text=f"{callback.from_user.username} предлагает вам добавить домашку для вашей группы\n\n{assignment_text}",
+        reply_markup=kb.as_markup()
+    )
+
+
+@dp.callback_query(F.data.split('|')[0] == "share_assignment_accept")
+async def share_assignment(callback: CallbackQuery, state: FSMContext):
+    assignment_id = int(callback.data.split('|')[1])
+    assignment_obj = select_assignment_by_id(assignment_id)
+    group_id = select_group_id_by_chat_id(callback.from_user.id)
+    try:
+        insert_assignment(
+            subject_id=assignment_obj.subject_id,
+            group_id=group_id,
+            description=assignment_obj.description,
+            deadline=assignment_obj.deadline,
+        )
+        await callback.message.answer(text="ДЗ добавлено успешно\n\nДля перехода в начало нажите /start")
+    except Exception as e:
+        print(f"Ошибка при добавлении домашки {e}")
+        await callback.message.answer(text="Что-то пошло не так")
 
 
 @dp.callback_query(F.data == "Edit assignment")

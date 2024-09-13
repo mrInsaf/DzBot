@@ -4,6 +4,7 @@ from typing import List
 import mysql
 from mysql.connector import Error, pooling
 
+
 from models.Assignment import Assignment
 from models.Deadline import Deadline
 from models.Group import Group
@@ -24,10 +25,11 @@ pool = pooling.MySQLConnectionPool(
 
 
 def get_connection():
+    from misc import caller_func
     try:
         connection = pool.get_connection()
         if connection.is_connected():
-            print("Успешное подключение к базе данных")
+            print(f"Успешное подключение к базе данных. Из {caller_func()}")
             return connection
     except mysql.connector.Error as e:
         print(f"Ошибка подключения: {e}")
@@ -112,14 +114,22 @@ def select_group_id_by_chat_id(chat_id: int):
     return select(f'select group_id from Students where chat_id = {chat_id}')[0][0]
 
 
-def select_assignments_by_group_id(group_id: int):
-    assignments_raw = select(
-        f'select s.name, deadline, description from Assignments a '
-        f'join Subjects s on a.subject_id = s.id '
-        f'where group_id = {group_id} '
-        f'order by deadline asc'
+def select_assignment_by_id(assignment_id: int):
+    assignment_list = select(
+        f'select s.name, a.group_id, a.description, a.deadline, a.id, s.id from Assignments a join Subjects s '
+        f'on a.subject_id = s.id '
+        f'where a.id = {assignment_id} '
+        f''
+    )[0]
+    assignment_obj = Assignment(
+        subject=assignment_list[0],
+        group_id=assignment_list[1],
+        description=assignment_list[2],
+        deadline=assignment_list[3],
+        id=assignment_list[4],
+        subject_id=assignment_list[5]
     )
-    return assignments_raw
+    return assignment_obj
 
 
 def select_assignments_by_subject_id(subject_id: int):
@@ -133,7 +143,6 @@ def select_subjects_by_group_id(group_id: int):
         f'on g.id = gs.group_id where g.id = {group_id};'
     )
 
-
 def select_group_by_subject_id(subject_id: int) -> List[Group]:
     result = []
     group_list = select(
@@ -145,7 +154,6 @@ def select_group_by_subject_id(subject_id: int) -> List[Group]:
         result.append(Group(group[0], group[1]))
     return result
 
-
 def select_subject_by_subject_id(subject_id: int):
     return select(f'select name from Subjects where id = {subject_id}')[0][0]
 
@@ -155,33 +163,50 @@ def insert_student(name: str, chat_id: int, tag: str, group_id: int):
     return insert("Students", data_list)
 
 
-def insert_assignment(subject_id: int, group_id: int, description: str, deadline: datetime.datetime):
-    query = """
+def insert_assignment(subject_id: int, group_id: int, description: str, deadline: Deadline):
+    insert_query = """
     INSERT INTO Assignments (subject_id, group_id, description, deadline)
     VALUES (%s, %s, %s, %s)
     """
-    params = (subject_id, group_id, description, deadline.strftime('%Y-%m-%d %H:%M:%S'))
-    execute_query(query, params)
+    params = (subject_id, group_id, description, deadline.dttm)
+
+    with get_connection() as conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(insert_query, params)
+            conn.commit()
+
+            # Получаем последний вставленный ID
+            cursor.execute("SELECT LAST_INSERT_ID()")
+            last_id = cursor.fetchone()[0]
+
+        finally:
+            cursor.close()
+
+    return last_id
+
+
+def select_assignments_by_group_id(group_id: int):
+    from misc import create_assignments_list
+    raw_assignments = select(
+        f'SELECT a.id, s.name, a.group_id, a.description, a.deadline, a.created_at '
+        f'from Assignments a '
+        f'join Subjects s on a.subject_id = s.id '
+        f'where a.group_id = {group_id}'
+    )
+
+    assignment_list = create_assignments_list(raw_assignments)
+    return assignment_list
 
 
 def select_assignments_by_group_id_and_subject_id(group_id: int, subject_id: int):
+    from misc import create_assignments_list
     raw_assignments = select(
         f'SELECT a.id, s.name, a.group_id, a.description, a.deadline, a.created_at '
         f'from Assignments a '
         f'join Subjects s on a.subject_id = s.id '
         f'where a.group_id = {group_id} and a.subject_id = {subject_id}')
-    assignment_list = []
-    for assignment in raw_assignments:
-        assignment_list.append(
-            Assignment(
-                id=assignment[0],
-                subject=assignment[1],
-                group_id=assignment[2],
-                description=assignment[3],
-                deadline=assignment[4],
-                created_at=assignment[5],
-            )
-        )
+    assignment_list = create_assignments_list(raw_assignments)
     return assignment_list
 
 
@@ -197,5 +222,14 @@ def update_deadline_by_assignment_id(assignment_id: int, new_deadline: Deadline)
     execute_query(query, params)
 
 
+def select_leaders():
+    return select(f'select tag from Leaders')
+
+
+def select_leader_with_same_subject(subject_id: int, current_leader_tag: str):
+    return select(f'select l.chat_id, l.name from Group_Subject gs '
+                  f'join Leaders l '
+                  f'on l.group_id = gs.group_id '
+                  f'where subject_id = {subject_id} and l.tag != "{current_leader_tag}"')
 
 
