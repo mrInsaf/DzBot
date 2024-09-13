@@ -67,8 +67,6 @@ async def start_command(callback: CallbackQuery, state: FSMContext):
         print("Чел зареган")
         kb.add(
             InlineKeyboardButton(text="Посмотреть ДЗ", callback_data="Check assignments"),
-            InlineKeyboardButton(text="Добавить ДЗ", callback_data="Add assignment"),
-            InlineKeyboardButton(text="Изменить ДЗ", callback_data="Edit assignment"),
         )
         if is_leader(callback.from_user.username):
             # kb.add(InlineKeyboardButton(text="Удалить ДЗ", callback_data="Delete assignment"))
