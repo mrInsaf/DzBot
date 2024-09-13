@@ -36,6 +36,10 @@ async def start_command(message: types.Message, state: FSMContext):
                 InlineKeyboardButton(text="Добавить ДЗ", callback_data="Add assignment"),
                 InlineKeyboardButton(text="Изменить ДЗ", callback_data="Edit assignment"),
             )
+        if message.from_user.id == 816831722:
+            kb.add(
+                InlineKeyboardButton(text="Выгрузить логи", callback_data="Send logs")
+            )
         print(message.from_user.username)
         kb.adjust(1)
         await message.answer("Выберите действие", reply_markup=kb.as_markup())
@@ -71,6 +75,10 @@ async def start_command(callback: CallbackQuery, state: FSMContext):
             kb.add(
                 InlineKeyboardButton(text="Добавить ДЗ", callback_data="Add assignment"),
                 InlineKeyboardButton(text="Изменить ДЗ", callback_data="Edit assignment"),
+            )
+        if callback.from_user.id == 816831722:
+            kb.add(
+                InlineKeyboardButton(text="Выгрузить логи", callback_data="Send logs")
             )
         kb.adjust(1)
         await callback.message.answer(f"Привет, {name}, Выберите действие", reply_markup=kb.as_markup())
@@ -466,6 +474,11 @@ async def edit_assignment_edit_deadline(callback: CallbackQuery, state: FSMConte
         reply_markup=kb.as_markup()
     )
     await state.set_state(EditAssignment.edit_deadline)
+
+
+@dp.callback_query(F.data == "Send logs")
+async def send_logs(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer_document(document="nohup.out")
 
 
 async def main(token: str) -> None:
