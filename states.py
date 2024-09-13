@@ -36,6 +36,3 @@ class EditAssignment(StatesGroup):
     save_new_description = State()
     save_new_deadline = State()
 
-
-class StartState(StatesGroup):
-    start_state = State()
