@@ -9,7 +9,7 @@ from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, FSInputFile
 
 from days_of_week import days_of_week
 from misc import *
@@ -478,7 +478,7 @@ async def edit_assignment_edit_deadline(callback: CallbackQuery, state: FSMConte
 
 @dp.callback_query(F.data == "Send logs")
 async def send_logs(callback: CallbackQuery, state: FSMContext):
-    await callback.message.answer_document(document="nohup.out")
+    await callback.message.answer_document(FSInputFile("nohup.out"))
 
 
 async def main(token: str) -> None:
