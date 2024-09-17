@@ -257,9 +257,18 @@ def insert_shared_assignment_to_queue(sender_id: int, receiver_id: int, assignme
 
 def fetch_assignments_queue(receiver_id: int):
     assignments = select(
-        f'select assignment_id, l.name, aq.id from AssignmentQueue aq join Leaders l '
-        f'on aq.receiver_id = l.id '
-        f'where l.chat_id = {receiver_id} and aq.status = "pending"'
+        f'''SELECT 
+                aq.assignment_id, 
+                sender.name AS sender_name, 
+                receiver.name AS receiver_name, 
+                aq.id 
+            FROM 
+                AssignmentQueue aq 
+            JOIN 
+                Leaders sender ON aq.sender_id = sender.id 
+            JOIN 
+                Leaders receiver ON aq.receiver_id = receiver.id
+            WHERE receiver.chat_id = {receiver_id} AND aq.status = "pending"'''
     )
     return assignments
 

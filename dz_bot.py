@@ -482,7 +482,7 @@ async def check_assignments_from_other_leaders_start(message: Message, state: FS
     waiting_assignments = fetch_assignments_queue(receiver_id=message.from_user.id)
     for assignment in waiting_assignments:
         kb_text = f"ДЗ от старосты {assignment[1]}"
-        kb.add(InlineKeyboardButton(text=kb_text, callback_data=f"{assignment[0]} | {assignment[2]}"))
+        kb.add(InlineKeyboardButton(text=kb_text, callback_data=f"{assignment[0]} | {assignment[3]}"))
     kb.adjust(1)
     await message.answer(text="Выберите ДЗ", reply_markup=kb.as_markup())
     await state.set_state(AssignmentsFromOtherLeaders.select_assignment)
