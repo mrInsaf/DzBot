@@ -35,6 +35,7 @@ async def start_command(message: types.Message, state: FSMContext):
             kb.add(
                 InlineKeyboardButton(text="Добавить ДЗ", callback_data="Add assignment"),
                 InlineKeyboardButton(text="Изменить ДЗ", callback_data="Edit assignment"),
+                InlineKeyboardButton(text="ДЗ от других старост", callback_data="Assignments from other leaders"),
             )
         if message.from_user.id == 816831722:
             kb.add(
@@ -59,6 +60,7 @@ async def start_command(message: types.Message, state: FSMContext):
 @dp.callback_query(F.data == "back", AddAssignment.start)
 @dp.callback_query(F.data == "back", CheckAssignment.start)
 @dp.callback_query(F.data == "back", EditAssignment.choose_deadline)
+@dp.callback_query(F.data == "back", AssignmentsFromOtherLeaders.select_assignment)
 async def start_command(callback: CallbackQuery, state: FSMContext):
     print("start")
     kb = create_kb()
@@ -73,6 +75,7 @@ async def start_command(callback: CallbackQuery, state: FSMContext):
             kb.add(
                 InlineKeyboardButton(text="Добавить ДЗ", callback_data="Add assignment"),
                 InlineKeyboardButton(text="Изменить ДЗ", callback_data="Edit assignment"),
+                InlineKeyboardButton(text="ДЗ от других старост", callback_data="Assignments from other leaders")
             )
         if callback.from_user.id == 816831722:
             kb.add(
@@ -267,35 +270,20 @@ async def add_assignment_share_with_other_leader(callback: CallbackQuery, state:
     assignment_text = create_assignment_text_from_assignment_obj(
         assignment_obj
     )
-    await callback.message.answer(text="Отправлено,\n\nДля перехода в начало нажите /start")
-    kb = InlineKeyboardBuilder()
-    kb.add(
-        InlineKeyboardButton(text="Принять", callback_data=f"share_assignment_accept|{assignment_obj.id}"),
-        InlineKeyboardButton(text="Отклонить", callback_data="share assignment|cancel"),
-    )
-    await bot.send_message(
-        chat_id=leader_chat_id,
-        text=f"{callback.from_user.username} предлагает вам добавить домашку для вашей группы\n\n{assignment_text}",
-        reply_markup=kb.as_markup()
-    )
-
-
-@dp.callback_query(F.data.split('|')[0] == "share_assignment_accept")
-async def share_assignment(callback: CallbackQuery, state: FSMContext):
-    assignment_id = int(callback.data.split('|')[1])
-    assignment_obj = select_assignment_by_id(assignment_id)
-    group_id = select_group_id_by_chat_id(callback.from_user.id)
     try:
-        insert_assignment(
-            subject_id=assignment_obj.subject_id,
-            group_id=group_id,
-            description=assignment_obj.description,
-            deadline=assignment_obj.deadline,
+        insert_shared_assignment_to_queue(
+            sender_id=callback.from_user.id,
+            receiver_id=int(leader_chat_id),
+            assignment_id=assignment_obj.id,
         )
-        await callback.message.answer(text="ДЗ добавлено успешно\n\nДля перехода в начало нажите /start")
+        await callback.message.answer(text="Отправлено,\n\nДля перехода в начало нажите /start")
+        await bot.send_message(
+            chat_id=leader_chat_id,
+            text=f"{callback.from_user.username} предлагает вам добавить домашку для вашей группы\n\n"
+                 f"Доделайте свои дела и нажмите /shared_assignments чтобы посмотреть ее",
+        )
     except Exception as e:
-        print(f"Ошибка при добавлении домашки {e}")
-        await callback.message.answer(text="Что-то пошло не так")
+        print("Ошибка при отправке домашки в функции add_assignment_share_with_other_leader")
 
 
 @dp.callback_query(F.data == "Edit assignment")
@@ -472,6 +460,63 @@ async def edit_assignment_edit_deadline(callback: CallbackQuery, state: FSMConte
         reply_markup=kb.as_markup()
     )
     await state.set_state(EditAssignment.edit_deadline)
+
+
+@dp.callback_query(F.data == "Assignments from other leaders")
+async def check_assignments_from_other_leaders_start(callback: CallbackQuery, state: FSMContext):
+    kb = create_kb()
+    waiting_assignments = fetch_assignments_queue(receiver_id=callback.from_user.id)
+    for assignment in waiting_assignments:
+        kb_text = f"ДЗ от старосты {assignment[1]}"
+        kb.add(InlineKeyboardButton(text=kb_text, callback_data=f"{assignment[0]} | {assignment[2]}"))
+    kb.adjust(1)
+    await callback.message.answer(text="Выберите ДЗ", reply_markup=kb.as_markup())
+    await state.set_state(AssignmentsFromOtherLeaders.select_assignment)
+
+
+@dp.callback_query(AssignmentsFromOtherLeaders.select_assignment)
+async def check_assignments_from_other_leaders_accept(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    callback_data = callback.data.split("|")
+    assignment_id = int(callback_data[0])
+    shared_assignment_id = callback_data[1]
+    assignment_obj = select_assignment_by_id(assignment_id)
+    await state.update_data(
+        assignment_obj=assignment_obj,
+        shared_assignment_id=shared_assignment_id
+    )
+    assignment_text = create_assignment_text_from_assignment_obj(assignment_obj)
+
+    kb = InlineKeyboardBuilder()
+    kb.add(
+        InlineKeyboardButton(text="Принять", callback_data=f"share_assignment_accept"),
+        InlineKeyboardButton(text="Отклонить", callback_data="share assignment|cancel"),
+    )
+
+    await callback.message.answer(text=f"Описание ДЗ:\n\n{assignment_text}\n\nПринимаем?", reply_markup=kb.as_markup())
+    await state.set_state(AssignmentsFromOtherLeaders.accept)
+
+
+@dp.callback_query(AssignmentsFromOtherLeaders.accept, F.data == "share_assignment_accept")
+async def accept_shared_assignment(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    assignment_obj = data['assignment_obj']
+    assignment_text = create_assignment_text_from_assignment_obj(assignment_obj)
+    shared_assignment_id = data["shared_assignment_id"]
+    group_id = select_group_id_by_chat_id(callback.from_user.id)
+    try:
+        insert_assignment(
+            subject_id=assignment_obj.subject_id,
+            group_id=group_id,
+            description=assignment_obj.description,
+            deadline=assignment_obj.deadline,
+        )
+        update_assignments_queue(shared_assignment_id)
+        await send_add_assignment_notification_to_group(bot, group_id, assignment_text)
+        await callback.message.answer(text="ДЗ добавлено успешно\n\nДля перехода в начало нажите /start")
+    except Exception as e:
+        print(f"Ошибка при добавлении домашки {e}")
+        await callback.message.answer(text="Что-то пошло не так")
 
 
 @dp.callback_query(F.data == "Send logs")

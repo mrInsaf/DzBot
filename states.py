@@ -36,3 +36,7 @@ class EditAssignment(StatesGroup):
     save_new_description = State()
     save_new_deadline = State()
 
+
+class AssignmentsFromOtherLeaders(StatesGroup):
+    select_assignment = State()
+    accept = State()

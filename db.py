@@ -230,10 +230,36 @@ def select_leaders():
     return select(f'select tag from Leaders')
 
 
+def select_leader_name_by_id(leader_id: int):
+    return select(f'select name from Leaders where id = {leader_id}')
+
+
 def select_leader_with_same_subject(subject_id: int, current_leader_tag: str):
     return select(f'select l.chat_id, l.name from Group_Subject gs '
                   f'join Leaders l '
                   f'on l.group_id = gs.group_id '
                   f'where subject_id = {subject_id} and l.tag != "{current_leader_tag}"')
 
+
+def insert_shared_assignment_to_queue(sender_id: int, receiver_id: int, assignment_id: int):
+    query = """
+    INSERT INTO AssignmentQueue (sender_id, receiver_id, assignment_id)
+    VALUES (%s, %s, %s)
+    """
+    params = (sender_id, receiver_id, assignment_id)
+
+    execute_query(query, params)
+
+
+def fetch_assignments_queue(receiver_id: int):
+    assignments = select(
+        f'select assignment_id, l.name, aq.id from AssignmentQueue aq join Leaders l '
+        f'on aq.receiver_id = l.id '
+        f'where l.chat_id = {receiver_id} and aq.status = "pending"'
+    )
+    return assignments
+
+
+def update_assignments_queue(shared_assignment_id: int):
+    execute_query('UPDATE `AssignmentQueue` set status = "sent" WHERE id = %s', params=[shared_assignment_id])
 
