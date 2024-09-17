@@ -245,13 +245,15 @@ async def add_assignment_finish(callback: CallbackQuery, state: FSMContext):
 
     if other_leaders:
         for leader in other_leaders:
-            leader_chat_id_str = str(leader[0])
+            leader_chat_id = leader[0]
+            leader_id_str = str(leader[2])
             leader_name_str = str(leader[1])
             print(f"leader is: {leader}")
             kb.add(
-                InlineKeyboardButton(text=f"Поделиться со старостой {leader_name_str}", callback_data=leader_chat_id_str)
+                InlineKeyboardButton(text=f"Поделиться со старостой {leader_name_str}", callback_data=leader_id_str)
             )
             await state.update_data(assignment_obj=assignment_obj)
+            await state.update_data(leader_chat_id=leader_chat_id)
             await state.set_state(AddAssignment.share_with_other_leader)
     else:
         await state.set_state(AddAssignment.real_finish)
@@ -266,14 +268,14 @@ async def add_assignment_finish(callback: CallbackQuery, state: FSMContext):
 async def add_assignment_share_with_other_leader(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     assignment_obj: Assignment = data['assignment_obj']
-    leader_chat_id = callback.data
-    assignment_text = create_assignment_text_from_assignment_obj(
-        assignment_obj
-    )
+    leader_id = callback.data
+    sender_id = select_leader_id_by_chat_id(callback.from_user.id)
+    print(f"leader_id: {leader_id}")
+    leader_chat_id = data['leader_chat_id']
     try:
         insert_shared_assignment_to_queue(
-            sender_id=callback.from_user.id,
-            receiver_id=int(leader_chat_id),
+            sender_id=sender_id,
+            receiver_id=int(leader_id),
             assignment_id=assignment_obj.id,
         )
         await callback.message.answer(text="Отправлено,\n\nДля перехода в начало нажите /start")
@@ -283,7 +285,7 @@ async def add_assignment_share_with_other_leader(callback: CallbackQuery, state:
                  f"Доделайте свои дела и нажмите /shared_assignments чтобы посмотреть ее",
         )
     except Exception as e:
-        print("Ошибка при отправке домашки в функции add_assignment_share_with_other_leader")
+        print(f"Ошибка при отправке домашки в функции add_assignment_share_with_other_leader: {e}")
 
 
 @dp.callback_query(F.data == "Edit assignment")
@@ -471,6 +473,18 @@ async def check_assignments_from_other_leaders_start(callback: CallbackQuery, st
         kb.add(InlineKeyboardButton(text=kb_text, callback_data=f"{assignment[0]} | {assignment[2]}"))
     kb.adjust(1)
     await callback.message.answer(text="Выберите ДЗ", reply_markup=kb.as_markup())
+    await state.set_state(AssignmentsFromOtherLeaders.select_assignment)
+
+
+@dp.message(Command("shared_assignments"))
+async def check_assignments_from_other_leaders_start(message: Message, state: FSMContext):
+    kb = create_kb()
+    waiting_assignments = fetch_assignments_queue(receiver_id=message.from_user.id)
+    for assignment in waiting_assignments:
+        kb_text = f"ДЗ от старосты {assignment[1]}"
+        kb.add(InlineKeyboardButton(text=kb_text, callback_data=f"{assignment[0]} | {assignment[2]}"))
+    kb.adjust(1)
+    await message.answer(text="Выберите ДЗ", reply_markup=kb.as_markup())
     await state.set_state(AssignmentsFromOtherLeaders.select_assignment)
 
 

@@ -234,8 +234,12 @@ def select_leader_name_by_id(leader_id: int):
     return select(f'select name from Leaders where id = {leader_id}')
 
 
+def select_leader_id_by_chat_id(chat_id: int):
+    return select(f'select id from Leaders where chat_id = {chat_id}')[0][0]
+
+
 def select_leader_with_same_subject(subject_id: int, current_leader_tag: str):
-    return select(f'select l.chat_id, l.name from Group_Subject gs '
+    return select(f'select l.chat_id, l.name, l.id from Group_Subject gs '
                   f'join Leaders l '
                   f'on l.group_id = gs.group_id '
                   f'where subject_id = {subject_id} and l.tag != "{current_leader_tag}"')
