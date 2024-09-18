@@ -11,6 +11,7 @@ from days_of_week import days_of_week
 from db import *
 from models.Assignment import Assignment
 from models.Deadline import Deadline
+from states import AddAssignment
 
 
 def create_kb():
@@ -136,6 +137,7 @@ def create_assignments_list(raw_assignments: list):
             description=assignment[3],
             deadline=assignment[4],
             created_at=assignment[5],
+            subject_id=assignment[6],
         )
         if assignment_obj.deadline.dttm >= datetime.datetime.now():
             assignment_list.append(assignment_obj)
@@ -153,3 +155,27 @@ def caller_func():
 def is_leader(username):
     # leaders = select_leaders()
     return username in leaders
+
+
+async def share_assignment_start_logic(assignment_obj: Assignment, callback: CallbackQuery, state: FSMContext):
+    kb = create_kb()
+    current_leader_tag = callback.from_user.username
+    other_leaders = select_leader_with_same_subject(assignment_obj.subject_id, current_leader_tag)
+
+    if other_leaders:
+        for leader in other_leaders:
+            leader_chat_id = leader[0]
+            leader_id_str = str(leader[2])
+            leader_name_str = str(leader[1])
+            print(f"leader is: {leader}")
+            kb.add(
+                InlineKeyboardButton(text=f"Поделиться со старостой {leader_name_str}", callback_data=leader_id_str)
+            )
+            await state.update_data(assignment_obj=assignment_obj)
+            await state.update_data(leader_chat_id=leader_chat_id)
+            await state.set_state(AddAssignment.share_with_other_leader)
+    else:
+        await state.set_state(AddAssignment.real_finish)
+    kb.adjust(1)
+    return kb
+

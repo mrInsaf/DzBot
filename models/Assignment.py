@@ -6,7 +6,7 @@ from models.Deadline import Deadline
 class Assignment:
     def __init__(self,
                  id: int = None,
-                 subject_id: str = None,
+                 subject_id: int = None,
                  subject: str = None,
                  group_id: int = None,
                  description: str = None,

@@ -34,7 +34,8 @@ async def start_command(message: types.Message, state: FSMContext):
             # kb.add(InlineKeyboardButton(text="Удалить ДЗ", callback_data="Delete assignment"))
             kb.add(
                 InlineKeyboardButton(text="Добавить ДЗ", callback_data="Add assignment"),
-                InlineKeyboardButton(text="Изменить ДЗ", callback_data="Edit assignment"),
+                InlineKeyboardButton(text="Изменить ДЗ / Поделиться с другим старостой",
+                                     callback_data="Edit assignment"),
                 InlineKeyboardButton(text="ДЗ от других старост", callback_data="Assignments from other leaders"),
             )
         if message.from_user.id == 816831722:
@@ -225,8 +226,6 @@ async def add_assignment_accept_dz(callback: CallbackQuery, state: FSMContext):
 
 @dp.callback_query(F.data == "accept", AddAssignment.finish)
 async def add_assignment_finish(callback: CallbackQuery, state: FSMContext):
-    kb = create_kb()
-
     data = await state.get_data()
     print(f'data is: {data}')
     subject_id = data['subject_id']
@@ -234,30 +233,11 @@ async def add_assignment_finish(callback: CallbackQuery, state: FSMContext):
     description = data['description']
     deadline = data['deadline']
 
-    current_leader_tag = callback.from_user.username
-
-    other_leaders = select_leader_with_same_subject(subject_id, current_leader_tag)
-
     assignment_id = insert_assignment(subject_id, group_id, description, deadline)
     assignment_obj = select_assignment_by_id(assignment_id)
-
     assignment_text = create_assignment_text_from_assignment_obj(assignment_obj)
 
-    if other_leaders:
-        for leader in other_leaders:
-            leader_chat_id = leader[0]
-            leader_id_str = str(leader[2])
-            leader_name_str = str(leader[1])
-            print(f"leader is: {leader}")
-            kb.add(
-                InlineKeyboardButton(text=f"Поделиться со старостой {leader_name_str}", callback_data=leader_id_str)
-            )
-            await state.update_data(assignment_obj=assignment_obj)
-            await state.update_data(leader_chat_id=leader_chat_id)
-            await state.set_state(AddAssignment.share_with_other_leader)
-    else:
-        await state.set_state(AddAssignment.real_finish)
-    kb.adjust(1)
+    kb = await share_assignment_start_logic(assignment_obj=assignment_obj, callback=callback, state=state)
 
     await send_add_assignment_notification_to_group(bot, group_id, assignment_text)
 
@@ -309,7 +289,6 @@ async def edit_assignment_choose_deadline(callback: CallbackQuery, state: FSMCon
 
     assignments = select_assignments_by_group_id_and_subject_id(group_id, subject_id)
     if assignments:
-        print(f"assignments is {assignments}")
         await state.update_data(assignments=assignments)
         for assignment in assignments:
             kb.add(
@@ -338,17 +317,32 @@ async def edit_assignment_choose_action(callback: CallbackQuery, state: FSMConte
 
     await state.update_data(assignment=selected_assignment)
 
-    print(selected_assignment)
     kb = create_kb()
     kb.add(
         InlineKeyboardButton(text="📝 Изменить описание ДЗ", callback_data="edit description"),
         InlineKeyboardButton(text="🕔 Изменить дедлайн ДЗ", callback_data="edit deadline"),
+        InlineKeyboardButton(text="✉️ Отправить ДЗ другому старосте", callback_data="share assignment"),
     )
     kb.adjust(1)
     await callback.message.answer(text=f"Вы выбрали дз по {selected_assignment.subject}, дедлайн в "
                                        f"{selected_assignment.deadline.string}\n\n Выберите действие",
                                   reply_markup=kb.as_markup())
     await state.set_state(EditAssignment.choose_action)
+
+
+@dp.callback_query(EditAssignment.choose_action, F.data == "share assignment")
+@dp.callback_query(EditAssignment.edit_description, F.data == "back")
+async def edit_assignment_share_assignment(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    assignment_obj: Assignment = data["assignment"]
+    for key in data.keys():
+        print(f"{key}: {data[key]}")
+    kb = await share_assignment_start_logic(
+        assignment_obj=assignment_obj,
+        callback=callback,
+        state=state
+    )
+    await callback.message.answer("Выберите старосту", reply_markup=kb.as_markup())
 
 
 @dp.callback_query(EditAssignment.choose_action, F.data == "edit description")

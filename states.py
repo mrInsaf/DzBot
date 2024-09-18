@@ -32,6 +32,7 @@ class EditAssignment(StatesGroup):
     edit_assignment = State()
     choose_action = State()
     edit_description = State()
+    share_assignment = State()
     edit_deadline = State()
     save_new_description = State()
     save_new_deadline = State()

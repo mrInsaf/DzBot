@@ -206,7 +206,7 @@ def select_assignments_by_group_id(group_id: int):
 def select_assignments_by_group_id_and_subject_id(group_id: int, subject_id: int):
     from misc import create_assignments_list
     raw_assignments = select(
-        f'SELECT a.id, s.name, a.group_id, a.description, a.deadline, a.created_at '
+        f'SELECT a.id, s.name, a.group_id, a.description, a.deadline, a.created_at, a.subject_id '
         f'from Assignments a '
         f'join Subjects s on a.subject_id = s.id '
         f'where a.group_id = {group_id} and a.subject_id = {subject_id}')
