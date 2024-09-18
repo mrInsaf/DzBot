@@ -227,7 +227,7 @@ def update_deadline_by_assignment_id(assignment_id: int, new_deadline: Deadline)
 
 
 def select_leaders():
-    return select(f'select tag from Leaders')
+    return select(f'select * from Leaders')
 
 
 def select_leader_name_by_id(leader_id: int):

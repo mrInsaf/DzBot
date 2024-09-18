@@ -40,7 +40,9 @@ async def start_command(message: types.Message, state: FSMContext):
             )
         if message.from_user.id == 816831722:
             kb.add(
-                InlineKeyboardButton(text="Выгрузить логи", callback_data="Send logs")
+                InlineKeyboardButton(text="Выгрузить логи", callback_data="Send logs"),
+                InlineKeyboardButton(text="Написать старостам", callback_data="Send message to leaders"),
+                InlineKeyboardButton(text="Написать всем", callback_data="Send message to all"),
             )
         print(message.from_user.username)
         kb.adjust(1)
@@ -80,7 +82,9 @@ async def start_command(callback: CallbackQuery, state: FSMContext):
             )
         if callback.from_user.id == 816831722:
             kb.add(
-                InlineKeyboardButton(text="Выгрузить логи", callback_data="Send logs")
+                InlineKeyboardButton(text="Выгрузить логи", callback_data="Send logs"),
+                InlineKeyboardButton(text="Написать старостам", callback_data="Send message to leaders"),
+                InlineKeyboardButton(text="Написать всем", callback_data="Send message to all"),
             )
         kb.adjust(1)
         await callback.message.answer(f"Привет, {name}, Выберите действие", reply_markup=kb.as_markup())
@@ -530,6 +534,36 @@ async def accept_shared_assignment(callback: CallbackQuery, state: FSMContext):
 @dp.callback_query(F.data == "Send logs")
 async def send_logs(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer_document(FSInputFile("nohup.out"))
+
+
+@dp.callback_query(F.data == "Send message to leaders")
+async def send_message_to_leaders_input_message(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer("Введите сообщение для старост")
+    await state.set_state(SendMessage.input_message_to_leaders)
+
+
+@dp.message(SendMessage.input_message_to_leaders)
+async def send_message_to_leaders_send_message(message: Message, state: FSMContext):
+    db_leaders = select_leaders()
+    for leader in db_leaders:
+        leader_chat_id = leader[2]
+        await bot.send_message(chat_id=leader_chat_id, text=f"Привет, старосты,\n\n {message.text}")
+    await message.answer(text="Сообщение отправлено, нажмите /start")
+
+
+@dp.callback_query(F.data == "Send message to all")
+async def send_message_to_all_input_message(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer("Введите сообщение для всех")
+    await state.set_state(SendMessage.input_message_to_all)
+
+
+@dp.message(SendMessage.input_message_to_all)
+async def send_message_to_all_send_message(message: Message, state: FSMContext):
+    db_leaders = select_leaders()
+    for leader in db_leaders:
+        leader_chat_id = leader[2]
+        await bot.send_message(chat_id=leader_chat_id, text=f"Всем привет,\n\n {message.text}")
+    await message.answer(text="Сообщение отправлено, нажмите /start")
 
 
 async def main(token: str) -> None:

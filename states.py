@@ -41,3 +41,9 @@ class EditAssignment(StatesGroup):
 class AssignmentsFromOtherLeaders(StatesGroup):
     select_assignment = State()
     accept = State()
+
+
+class SendMessage(StatesGroup):
+    input_message_to_leaders = State()
+    input_message_to_all = State()
+
