@@ -1,28 +1,39 @@
 import datetime
+import os
 from typing import List
 
 import mysql
 from mysql.connector import Error, pooling
 
-
 from models.Assignment import Assignment
 from models.Deadline import Deadline
 from models.Group import Group
 
-# Параметры подключения к базе данных MySQL
-config = {
-    'user': 'stepan',
-    'password': 'stepan',
-    'host': '185.50.202.243',
-    'database': 'dz_bot',
-}
 
+def get_db_config():
+    db_env = os.getenv('DB_ENV')
+    print(f"db_env: {db_env}")
+    if db_env == 'test':
+        db_name = 'dz_bot_test'
+    else:
+        db_name = 'dz_bot'
+
+    return {
+        'user': 'stepan',
+        'password': 'stepan',
+        'host': '185.50.202.243',
+        'database': db_name,
+    }
+
+
+config = get_db_config()
 pool = pooling.MySQLConnectionPool(
     pool_name="mypool",
     pool_size=5,
     **config
 )
 
+print(f'config: {config}')
 
 def get_connection():
     from misc import caller_func
@@ -143,6 +154,7 @@ def select_subjects_by_group_id(group_id: int):
         f'on g.id = gs.group_id where g.id = {group_id};'
     )
 
+
 def select_group_by_subject_id(subject_id: int) -> List[Group]:
     result = []
     group_list = select(
@@ -153,6 +165,7 @@ def select_group_by_subject_id(subject_id: int) -> List[Group]:
     for group in group_list:
         result.append(Group(group[0], group[1]))
     return result
+
 
 def select_subject_by_subject_id(subject_id: int):
     return select(f'select name from Subjects where id = {subject_id}')[0][0]
@@ -274,5 +287,5 @@ def fetch_assignments_queue(receiver_id: int):
 
 
 def update_assignments_queue(shared_assignment_id: int):
+    print(f"shared_assignment_id: {shared_assignment_id}")
     execute_query('UPDATE `AssignmentQueue` set status = "sent" WHERE id = %s', params=[shared_assignment_id])
-

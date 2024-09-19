@@ -1,7 +1,9 @@
 import asyncio
 import datetime
 import logging
+import os
 import sys
+import traceback
 
 from aiogram import Dispatcher, types, F, Bot
 from aiogram.client.default import DefaultBotProperties
@@ -12,9 +14,20 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, FSInputFile
 
 from days_of_week import days_of_week
-from misc import *
 from states import *
 
+if len(sys.argv) == 2:
+    print(sys.argv)
+    if sys.argv[1] == "test":
+        os.environ['DB_ENV'] = 'test'
+    else:
+        os.environ['DB_ENV'] = 'prod'
+else:
+    print("Usage: python main.py <token>")
+    sys.exit(1)
+
+
+from misc import *
 from db import *
 
 TEST_TOKEN = "6570387436:AAF97uK9eF23S4GByAv3bOq0HEGQT_sd67o"
@@ -77,7 +90,8 @@ async def start_command(callback: CallbackQuery, state: FSMContext):
             # kb.add(InlineKeyboardButton(text="Удалить ДЗ", callback_data="Delete assignment"))
             kb.add(
                 InlineKeyboardButton(text="Добавить ДЗ", callback_data="Add assignment"),
-                InlineKeyboardButton(text="Изменить ДЗ / Поделиться с другим старостой", callback_data="Edit assignment"),
+                InlineKeyboardButton(text="Изменить ДЗ / Поделиться с другим старостой",
+                                     callback_data="Edit assignment"),
                 InlineKeyboardButton(text="ДЗ от других старост", callback_data="Assignments from other leaders")
             )
         if callback.from_user.id == 816831722:
@@ -466,9 +480,10 @@ async def edit_assignment_edit_deadline(callback: CallbackQuery, state: FSMConte
 async def check_assignments_from_other_leaders_start(callback: CallbackQuery, state: FSMContext):
     kb = create_kb()
     waiting_assignments = fetch_assignments_queue(receiver_id=callback.from_user.id)
+    print(f"waiting_assignments: {waiting_assignments}")
     for assignment in waiting_assignments:
         kb_text = f"ДЗ от старосты {assignment[1]}"
-        kb.add(InlineKeyboardButton(text=kb_text, callback_data=f"{assignment[0]} | {assignment[2]}"))
+        kb.add(InlineKeyboardButton(text=kb_text, callback_data=f"{assignment[0]} | {assignment[3]}"))
     kb.adjust(1)
     await callback.message.answer(text="Выберите ДЗ", reply_markup=kb.as_markup())
     await state.set_state(AssignmentsFromOtherLeaders.select_assignment)
@@ -478,6 +493,7 @@ async def check_assignments_from_other_leaders_start(callback: CallbackQuery, st
 async def check_assignments_from_other_leaders_start(message: Message, state: FSMContext):
     kb = create_kb()
     waiting_assignments = fetch_assignments_queue(receiver_id=message.from_user.id)
+    print(f"waiting_assignments: {waiting_assignments}")
     for assignment in waiting_assignments:
         kb_text = f"ДЗ от старосты {assignment[1]}"
         kb.add(InlineKeyboardButton(text=kb_text, callback_data=f"{assignment[0]} | {assignment[3]}"))
@@ -528,6 +544,7 @@ async def accept_shared_assignment(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer(text="ДЗ добавлено успешно\n\nДля перехода в начало нажите /start")
     except Exception as e:
         print(f"Ошибка при добавлении домашки {e}")
+        traceback.print_exception(type(e), e, e.__traceback__)
         await callback.message.answer(text="Что-то пошло не так")
 
 
@@ -569,21 +586,17 @@ async def send_message_to_all_send_message(message: Message, state: FSMContext):
 async def main(token: str) -> None:
     global bot
     if token == "test":
-        bot = Bot(
-            TEST_TOKEN,
-            default=DefaultBotProperties(
-                parse_mode=ParseMode.HTML,
-            )
-        )
-        await dp.start_polling(bot)
+        bot_token = TEST_TOKEN
     else:
-        bot = Bot(
-            MAIN_TOKEN,
-            default=DefaultBotProperties(
-                parse_mode=ParseMode.HTML,
-            )
+        bot_token = MAIN_TOKEN
+
+    bot = Bot(
+        bot_token,
+        default=DefaultBotProperties(
+            parse_mode=ParseMode.HTML,
         )
-        await dp.start_polling(bot)
+    )
+    await dp.start_polling(bot)
 
 
 if __name__ == "__main__":

@@ -98,6 +98,7 @@ async def send_edit_assignment_new_deadline_notification_to_group(bot: Bot, grou
 async def send_notification_to_group(bot: Bot, group_id: int, text: str):
     students = select_students_chat_ids_by_group_id(group_id)
     for student in students:
+        print()
         await bot.send_message(chat_id=int(student[0]), text=text)
 
 def dttm_to_string(dttm: datetime) -> str:
