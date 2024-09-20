@@ -2,5 +2,6 @@ leaders = [
     'NicoBeno',
     'Sofiya_AP',
     'pushcip',
-    'EPonasenkow',
+    'K3berson',
+    'Mathboyy'
 ]

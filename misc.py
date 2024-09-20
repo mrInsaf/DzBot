@@ -140,7 +140,7 @@ def create_assignments_list(raw_assignments: list):
             created_at=assignment[5],
             subject_id=assignment[6],
         )
-        if assignment_obj.deadline.dttm >= datetime.datetime.now():
+        if assignment_obj.deadline.dttm.day >= datetime.datetime.now().day:
             assignment_list.append(assignment_obj)
     return assignment_list
 
