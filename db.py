@@ -79,7 +79,7 @@ def select(query):
 
 def insert(table_name: str, data_list: list, auto_increment_id: int = 1):
     try:
-        print("Start insert")
+
 
         # Получаем соединение из пула
         conn = get_connection()
@@ -89,16 +89,16 @@ def insert(table_name: str, data_list: list, auto_increment_id: int = 1):
                 cursor.execute(f"SHOW COLUMNS FROM {table_name}")
                 columns = [column[0] for column in cursor.fetchall()]
                 columns = columns[auto_increment_id:]  # Убираем auto_increment, если нужно
-                print(columns)
+
 
                 placeholders = ', '.join(['%s'] * len(columns))
                 query = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders})"
-                print(query)
+
 
                 cursor.execute(query, data_list)
                 row_id = cursor.lastrowid
                 conn.commit()
-                print("Finished insert")
+
                 return row_id
             except Exception as e:
                 print(f"Исключение при insert: {e}")
@@ -251,6 +251,10 @@ def select_leader_id_by_chat_id(chat_id: int):
     return select(f'select id from Leaders where chat_id = {chat_id}')[0][0]
 
 
+def select_leader_chat_id_by_id(leader_id: int):
+    return select(f"SELECT chat_id from Leaders where id = {leader_id};")
+
+
 def select_leader_with_same_subject(subject_id: int, current_leader_tag: str):
     return select(f'select l.chat_id, l.name, l.id from Group_Subject gs '
                   f'join Leaders l '
@@ -287,5 +291,5 @@ def fetch_assignments_queue(receiver_id: int):
 
 
 def update_assignments_queue(shared_assignment_id: int):
-    print(f"shared_assignment_id: {shared_assignment_id}")
+
     execute_query('UPDATE `AssignmentQueue` set status = "sent" WHERE id = %s', params=[shared_assignment_id])

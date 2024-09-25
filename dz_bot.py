@@ -17,7 +17,7 @@ from days_of_week import days_of_week
 from states import *
 
 if len(sys.argv) == 2:
-    print(sys.argv)
+
     if sys.argv[1] == "test":
         os.environ['DB_ENV'] = 'test'
     else:
@@ -57,7 +57,7 @@ async def start_command(message: types.Message, state: FSMContext):
                 InlineKeyboardButton(text="Написать старостам", callback_data="Send message to leaders"),
                 InlineKeyboardButton(text="Написать всем", callback_data="Send message to all"),
             )
-        print(message.from_user.username)
+
         kb.adjust(1)
         await message.answer("Выберите действие", reply_markup=kb.as_markup())
         await state.set_state(StartState.start)
@@ -78,11 +78,11 @@ async def start_command(message: types.Message, state: FSMContext):
 @dp.callback_query(F.data == "back", EditAssignment.choose_deadline)
 @dp.callback_query(F.data == "back", AssignmentsFromOtherLeaders.select_assignment)
 async def start_command(callback: CallbackQuery, state: FSMContext):
-    print("start")
+
     kb = create_kb()
     name = callback.from_user.first_name
     if check_student_in_db(callback.from_user.id):
-        print("Чел зареган")
+
         kb.add(
             InlineKeyboardButton(text="Посмотреть ДЗ", callback_data="Check assignments"),
         )
@@ -104,7 +104,7 @@ async def start_command(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer(f"Привет, {name}, Выберите действие", reply_markup=kb.as_markup())
         await state.set_state(StartState.start)
     else:
-        print("Чел не зареган")
+
         groups = select_all_groups()
         for group in groups:
             kb.add(
@@ -245,7 +245,7 @@ async def add_assignment_accept_dz(callback: CallbackQuery, state: FSMContext):
 @dp.callback_query(F.data == "accept", AddAssignment.finish)
 async def add_assignment_finish(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    print(f'data is: {data}')
+
     subject_id = data['subject_id']
     group_id = data['group_id']
     description = data['description']
@@ -266,14 +266,13 @@ async def add_assignment_finish(callback: CallbackQuery, state: FSMContext):
 async def add_assignment_share_with_other_leader(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     assignment_obj: Assignment = data['assignment_obj']
-    leader_id = callback.data
+    leader_id = int(callback.data)
     sender_id = select_leader_id_by_chat_id(callback.from_user.id)
-    print(f"leader_id: {leader_id}")
-    leader_chat_id = data['leader_chat_id']
+    leader_chat_id = select_leader_chat_id_by_id(leader_id)[0][0]
     try:
         insert_shared_assignment_to_queue(
             sender_id=sender_id,
-            receiver_id=int(leader_id),
+            receiver_id=leader_id,
             assignment_id=assignment_obj.id,
         )
         await callback.message.answer(text="Отправлено,\n\nДля перехода в начало нажите /start")
@@ -353,8 +352,7 @@ async def edit_assignment_choose_action(callback: CallbackQuery, state: FSMConte
 async def edit_assignment_share_assignment(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     assignment_obj: Assignment = data["assignment"]
-    for key in data.keys():
-        print(f"{key}: {data[key]}")
+
     kb = await share_assignment_start_logic(
         assignment_obj=assignment_obj,
         callback=callback,
@@ -480,7 +478,7 @@ async def edit_assignment_edit_deadline(callback: CallbackQuery, state: FSMConte
 async def check_assignments_from_other_leaders_start(callback: CallbackQuery, state: FSMContext):
     kb = create_kb()
     waiting_assignments = fetch_assignments_queue(receiver_id=callback.from_user.id)
-    print(f"waiting_assignments: {waiting_assignments}")
+
     for assignment in waiting_assignments:
         kb_text = f"ДЗ от старосты {assignment[1]}"
         kb.add(InlineKeyboardButton(text=kb_text, callback_data=f"{assignment[0]} | {assignment[3]}"))
@@ -493,7 +491,7 @@ async def check_assignments_from_other_leaders_start(callback: CallbackQuery, st
 async def check_assignments_from_other_leaders_start(message: Message, state: FSMContext):
     kb = create_kb()
     waiting_assignments = fetch_assignments_queue(receiver_id=message.from_user.id)
-    print(f"waiting_assignments: {waiting_assignments}")
+
     for assignment in waiting_assignments:
         kb_text = f"ДЗ от старосты {assignment[1]}"
         kb.add(InlineKeyboardButton(text=kb_text, callback_data=f"{assignment[0]} | {assignment[3]}"))

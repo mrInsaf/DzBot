@@ -50,7 +50,7 @@ async def add_assignment_accept_dz_logic(description: str, state: FSMContext):
     subject_id = data['subject_id']
     subject = select_subject_by_subject_id(subject_id)
     deadline = data['deadline']
-    print(f"data is: {data}")
+
 
     assignment_text = create_assignment_text(
         subject,
@@ -98,7 +98,7 @@ async def send_edit_assignment_new_deadline_notification_to_group(bot: Bot, grou
 async def send_notification_to_group(bot: Bot, group_id: int, text: str):
     students = select_students_chat_ids_by_group_id(group_id)
     for student in students:
-        print()
+
         await bot.send_message(chat_id=int(student[0]), text=text)
 
 def dttm_to_string(dttm: datetime) -> str:
@@ -140,10 +140,10 @@ def create_assignments_list(raw_assignments: list):
             created_at=assignment[5],
             subject_id=assignment[6],
         )
-        print(assignment_obj)
+
         if assignment_obj.deadline.dttm.date() >= datetime.datetime.today().date():
             assignment_list.append(assignment_obj)
-    print(assignment_list)
+
     return assignment_list
 
 
@@ -166,16 +166,17 @@ async def share_assignment_start_logic(assignment_obj: Assignment, callback: Cal
     other_leaders = select_leader_with_same_subject(assignment_obj.subject_id, current_leader_tag)
 
     if other_leaders:
+        await state.update_data(assignment_obj=assignment_obj)
+
         for leader in other_leaders:
             leader_chat_id = leader[0]
             leader_id_str = str(leader[2])
             leader_name_str = str(leader[1])
-            print(f"leader is: {leader}")
+
             kb.add(
                 InlineKeyboardButton(text=f"Поделиться со старостой {leader_name_str}", callback_data=leader_id_str)
             )
-            await state.update_data(assignment_obj=assignment_obj)
-            await state.update_data(leader_chat_id=leader_chat_id)
+
             await state.set_state(AddAssignment.share_with_other_leader)
     else:
         await state.set_state(AddAssignment.real_finish)
