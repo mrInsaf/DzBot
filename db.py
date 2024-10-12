@@ -125,6 +125,26 @@ def select_group_id_by_chat_id(chat_id: int):
     return select(f'select group_id from Students where chat_id = {chat_id}')[0][0]
 
 
+def select_all_fresh_assignments():
+    assignment_list = select(
+        f'select s.name, a.group_id, a.description, a.deadline, a.id, s.id from Assignments a join Subjects s '
+        f'on a.subject_id = s.id '
+        f'WHERE a.deadline > "{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}"'
+    )
+    assignment_obj_list = []
+    for assignment in assignment_list:
+        assignment_obj = Assignment(
+            subject=assignment[0],
+            group_id=assignment[1],
+            description=assignment[2],
+            deadline=assignment[3],
+            id=assignment[4],
+            subject_id=assignment[5]
+        )
+        assignment_obj_list.append(assignment_obj)
+    return assignment_obj_list
+
+
 def select_assignment_by_id(assignment_id: int):
     assignment_list = select(
         f'select s.name, a.group_id, a.description, a.deadline, a.id, s.id from Assignments a join Subjects s '

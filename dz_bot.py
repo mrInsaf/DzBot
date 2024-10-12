@@ -34,6 +34,7 @@ TEST_TOKEN = "6570387436:AAF97uK9eF23S4GByAv3bOq0HEGQT_sd67o"
 MAIN_TOKEN = '7057080247:AAF7lvvtHip5Eynij5FV4g3w4vDP6LMqH1I'
 
 dp = Dispatcher()
+scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
 
 
 @dp.message(Command('start'))
@@ -594,6 +595,8 @@ async def main(token: str) -> None:
             parse_mode=ParseMode.HTML,
         )
     )
+    schedule_reminders(bot, scheduler)
+    scheduler.start()
     await dp.start_polling(bot)
 
 

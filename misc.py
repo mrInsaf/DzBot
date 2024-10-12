@@ -1,5 +1,6 @@
 import datetime
 import inspect
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from aiogram import Bot
 from aiogram.fsm.context import FSMContext
@@ -183,3 +184,17 @@ async def share_assignment_start_logic(assignment_obj: Assignment, callback: Cal
     kb.adjust(1)
     return kb
 
+
+def schedule_reminders(bot: Bot, scheduler):
+    assignment_obj_list = select_all_fresh_assignments()
+    for assignment_obj in assignment_obj_list:
+        deadline = assignment_obj.deadline.dttm
+        reminder_time = deadline - datetime.timedelta(days=1)
+
+        scheduler.add_job(send_reminder, 'date', run_date=reminder_time, args=[bot, assignment_obj])
+
+
+async def send_reminder(bot: Bot, assignment_obj: Assignment):
+    assignment_text = create_assignment_text_from_assignment_obj(assignment_obj)
+    reminder_text = f"Напоминание, до дедлайна 1 день\n {assignment_text}"
+    await send_notification_to_group(bot, assignment_obj.group_id, reminder_text)
