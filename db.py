@@ -19,10 +19,12 @@ def get_db_config():
         db_name = 'dz_bot'
 
     return {
-        'user': 'stepan',
-        'password': 'stepan',
-        'host': '185.50.202.243',
+        'user': 'lesha',
+        'password': 'alexei',
+        'host': '45.151.31.119',
         'database': db_name,
+        'port': 3306,
+        'raise_on_warnings': True,
     }
 
 
