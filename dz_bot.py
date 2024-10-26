@@ -43,6 +43,7 @@ async def start_command(message: types.Message, state: FSMContext):
     if check_student_in_db(message.from_user.id):
         kb.add(
             InlineKeyboardButton(text="Посмотреть ДЗ", callback_data="Check assignments"),
+            InlineKeyboardButton(text="ОТМЕЧАЮТ!!!", callback_data="Poseschenie"),
         )
         if is_leader(message.from_user.username):
             # kb.add(InlineKeyboardButton(text="Удалить ДЗ", callback_data="Delete assignment"))
@@ -86,6 +87,7 @@ async def start_command(callback: CallbackQuery, state: FSMContext):
 
         kb.add(
             InlineKeyboardButton(text="Посмотреть ДЗ", callback_data="Check assignments"),
+            InlineKeyboardButton(text="ОТМЕЧАЮТ!!!", callback_data="Poseschenie"),
         )
         if is_leader(callback.from_user.username):
             # kb.add(InlineKeyboardButton(text="Удалить ДЗ", callback_data="Delete assignment"))
@@ -580,6 +582,12 @@ async def send_message_to_all_send_message(message: Message, state: FSMContext):
         leader_chat_id = leader[2]
         await bot.send_message(chat_id=leader_chat_id, text=f"Всем привет,\n\n {message.text}")
     await message.answer(text="Сообщение отправлено, нажмите /start")
+
+
+@dp.callback_query(F.data == "Poseschenie")
+async def poseschenie_start(callback: CallbackQuery, state: FSMContext):
+    group_id = select_group_id_by_chat_id(callback.from_user.id)
+    await send_notification_to_group(bot = bot, group_id=group_id, text="!!!ОТМЕЧАЮТ ОТМЕЧАЮТ ОТМЕЧАЮТ!!!")
 
 
 async def main(token: str) -> None:
