@@ -197,6 +197,9 @@ def select_students_chat_ids_by_group_id(group_id: int):
     return select(f"select chat_id from Students where group_id = {group_id}")
 
 
+def select_student_by_chat_id(chat_id: int):
+    return select(f"select name from Students where chat_id = {chat_id}")[0][0]
+
 def insert_student(name: str, chat_id: int, tag: str, group_id: int):
     data_list = [name, chat_id, tag, group_id]
     return insert("Students", data_list)

@@ -99,9 +99,11 @@ async def send_edit_assignment_new_deadline_notification_to_group(bot: Bot, grou
 async def send_notification_to_group(bot: Bot, group_id: int, text: str):
     students = select_students_chat_ids_by_group_id(group_id)
     for student in students:
-
-        await bot.send_message(chat_id=int(student[0]), text=text)
-
+        try:
+            await bot.send_message(chat_id=int(student[0]), text=text)
+        except Exception as e:
+            student_name = select_student_by_chat_id(student)
+            print(f"Ошибка при отправке уведомления.\n Студент:{student_name}\n\nПричина: {e}")
 def dttm_to_string(dttm: datetime) -> str:
     return dttm.strftime("%d.%m.%Y")
 
